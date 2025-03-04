@@ -1,0 +1,25 @@
+{
+  "dependencies": {
+    "csv-parser": "^3.2.0",
+    "express": "^4.21.2",
+    "papaparse": "^5.5.2"
+  },
+  "name": "hajutusrakendused",
+  "version": "1.0.0",
+  "main": "Car.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/markusmikk100/HajutusRakendused.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/markusmikk100/HajutusRakendused/issues"
+  },
+  "homepage": "https://github.com/markusmikk100/HajutusRakendused#readme",
+  "description": ""
+}
