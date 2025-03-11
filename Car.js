@@ -1,107 +1,55 @@
 const fs = require('fs');
 const Papa = require('papaparse');
 const express = require('express');
-const app = express(); // Create an instance of the express app
+const app = express();
 app.use(express.json());
 
+const columnNames = [
+    "Part Number", "Part Name", "Quantity", "Price", "Discount", 
+    "Tax", "Additional Info", "Part Category", "Price (Local Currency)", 
+    "Brand", "Weight"
+];
+
 let data = [];
-
-// Read and parse the CSV file asynchronously when the server starts
+//    read    path    decoder  error  CSV          need utf 8 for encoding and use of special characters, also makes papa work correctly
 fs.readFile('LE.txt', 'utf8', (err, csvData) => {
-    if (err) {
-        console.error(err);
-        return;
-    }
+    if (err) return console.error(err); // this runs if error
+    Papa.parse(csvData, { header: false, complete: results => data = results.data });  // papa changes CSV to json
+});   
 
-    Papa.parse(csvData, {
-        header: false, // Assuming no header row or inconsistent headers
-        complete: function(results) {
-            data = results.data;
-            console.log('Data loaded into memory.');
-        }
-    });
-});
 
-// Handle the `/spare-parts` route
+// App gets
 app.get('/spare-parts', (req, res) => {
-    if (data.length === 0) {
-        return res.status(500).json({ error: 'Data is still loading, please try again later.' });
-    }
-
+    const { name, sn, sort, page = 1 } = req.query;
     let filteredData = data;
 
-    // Apply filters based on query parameters
-    const name = req.query.name;
-    const sn = req.query.sn;
-    if (name) {
-        filteredData = filteredData.filter(row => row.includes(name));
-    }
-    if (sn) {
-        filteredData = filteredData.filter(row => row.includes(sn));
-    }
-
-    // Apply sorting if sort parameter is provided
-    const sort = req.query.sort;
+    //Filtering
+    if (name) filteredData = filteredData.filter(row => row.includes(name));
+    if (sn) filteredData = filteredData.filter(row => row.includes(sn));
     if (sort) {
-        let ascending = true;
-        let sortKey = parseInt(sort); // Assuming sort by column index
-        if (sort.startsWith('-')) {
-            ascending = false;
-            sortKey = parseInt(sort.slice(1));
-        }
-
-        filteredData.sort((a, b) => {
-            if (a[sortKey] < b[sortKey]) return ascending ? -1 : 1;
-            if (a[sortKey] > b[sortKey]) return ascending ? 1 : -1;
-            return 0;
-        });
+        const ascending = !sort.startsWith('-');
+        const sortKey = parseInt(sort.replace('-', ''));
+        filteredData.sort((a, b) => ascending ? a[sortKey] - b[sortKey] : b[sortKey] - a[sortKey]);
     }
 
-    // Generate generic column names
-    const numColumns = filteredData[0].length;
-    const columnNames = Array.from({ length: numColumns }, (_, i) => `Column ${i + 1}`);
-
-    // Transform data into a format with headers
-    const transformedData = [
-        columnNames, // Header row
-        ...filteredData.map(row => row)
-    ];
-
-    // Pagination logic
-    const page = parseInt(req.query.page) || 1;
-    const perPage = 31; // Items per page
-    const totalItems = transformedData.length - 1; // Subtract 1 for the header row
+    // Pages
+    const perPage = 30;
+    const totalItems = filteredData.length;
     const totalPages = Math.ceil(totalItems / perPage);
 
-    if (page < 1 || page > totalPages) {
-        return res.status(400).json({ error: 'Invalid page number' });
-    }
+    const paginatedData = filteredData.slice((page - 1) * perPage, page * perPage);
 
-    const start = (page - 1) * perPage + 1; // Start index of data (skip header)
-    const end = start + perPage;
-
-    const paginatedData = transformedData.slice(start, end);
-
-    // Map data to objects with proper column names as keys
-    const jsonData = paginatedData.map(row => {
-        return row.reduce((acc, cell, index) => {
-            acc[columnNames[index]] = cell;
-            return acc;
-        }, {});
-    });
+    // ?  ??? ?
+    const jsonData = paginatedData.map(row => row.reduce((acc, cell, idx) => {
+        acc[columnNames[idx]] = cell;
+        return acc;
+    }, {}));
 
     res.json({
         data: jsonData,
-        pagination: {
-            currentPage: page,
-            totalPages: totalPages,
-            totalItems: totalItems,
-            perPage: perPage
-        }
+        pagination: { currentPage: page, totalPages, totalItems, perPage }
     });
 });
 
-// Start the server
-app.listen(3300, () => {
-    console.log('Server is running on http://localhost:3300');
-});
+// Server wrooom
+app.listen(3300, () => console.log('Server running on http://localhost:3300'));
